@@ -7,7 +7,7 @@
 #include <regex.h>
 
 #define MAX_BUFFER_SIZE 1024
-#define SERVER_PORT 8080 // Default server port
+#define SERVER_PORT 4254 // Default server port
 
 void error(const char *msg) {
     perror(msg);

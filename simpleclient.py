@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-import socket, sys, select
+#!/usr/bin/env python3
+import socket, sys, select, re
 
 MAGIC_STR = "cs4254fall2023"
 secretkey = ""
@@ -8,12 +8,12 @@ def validate_input_args():
     if len(sys.argv) < 3 or len(sys.argv) > 5:
         print("Usage: python simpleclient.py <-p port> [hostname] [username]")
         sys.exit(0)
-    
+
     # Default port value
     port = 4254
     hostname = None
     username = None
-    
+
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "-p":
@@ -39,11 +39,11 @@ def validate_input_args():
                 print("Too many arguments.")
                 sys.exit(1)
             i += 1
-    
+
     if hostname is None or username is None:
         print("Missing hostname or username.")
         sys.exit(1)
-    
+
     return port, hostname, username
 
 def solve(operator, op1, op2):
@@ -58,7 +58,7 @@ def disconnect(sock):
     except:
         return
 
-# Get the command-line arguments and validate it
+# Get info from command-line arguments and validate it
 port, hostname, username = validate_input_args()
 
 try:
@@ -82,7 +82,7 @@ except socket.error as err:
 
 msg = "%s HELLO %s\n" % (MAGIC_STR, username)
 
-client.send(msg.encode())
+client.sendall(msg.encode())
 
 while True:
     waiting = select.select([client], [], [], 1)[0]
@@ -93,32 +93,36 @@ while True:
             print(m)
             disconnect(sock)
             continue
-        
+
         expr = response.strip().split(" ")
-        
+
         if len(expr)==3 and expr[2]=="BYE":
-            secretkey=expr[1]
-            print(secretkey)
+            if re.match(r'[A-Za-z0-9+/=]{64}',expr[1]):
+                secretkey=expr[1]
+                print(secretkey)
+                disconnect(sock)
+                break
+            else:
+                disconnect(sock)
+                sys.exit(1)
+        elif len(expr)==5 and expr[1]=="STATUS":
+            try:
+                op1 = int(expr[-3])
+                op2 = int(expr[-1])
+            except:
+                print("Operand(s) should be a numerical.")
+                disconnect(sock)
+                continue
+            operator = expr[-2]
+            # Unsigned integer arithmetic
+            ans = solve(operator, op1, op2)
+
+            msg = "%s %s\n" % (MAGIC_STR, str(ans))
+            client.sendall(msg.encode())
+        else:
             disconnect(sock)
             break
-        elif len(expr)!=5 or expr[1]!="STATUS" or expr[0]!=MAGIC_STR :
-            disconnect(sock)
-            break
-        try:
-            op1 = int(expr[-3])
-            op2 = int(expr[-1])
-        except:
-            print("Operand(s) should be a numerical.")
-            disconnect(sock)
-            continue
-        operator = expr[-2]
-        # Unsigned integer arithmetic
-        # Max/Min : +/-1,000,000
-        ans = solve(operator, op1, op2)
-        #print(ans)
-        msg = "%s %s\n" % (MAGIC_STR, str(ans))
-        # Check the partial sends
-        client.send(msg.encode())
-    # If we got the desired secret, then exit from the loop
+
+    # If we got the secret, then exit from the loop
     if secretkey!="" : break
 disconnect(sock)

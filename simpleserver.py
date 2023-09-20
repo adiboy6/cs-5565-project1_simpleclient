@@ -52,8 +52,8 @@ def disconnect(sock, sockets, clients):
 
 #send two random numbers and one operator
 def send_status(sock, client):
-    client.rand1 = random.randint(1, 10)
-    client.rand2 = random.randint(1, 10)
+    client.rand1 = random.randint(900, 1000)
+    client.rand2 = random.randint(900, 1000)
     client.operator = random.choice(('+', '-', '*', '/'))
     client.last_active = time.time()
 
